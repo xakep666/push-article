@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Тестовый пример приема пушей</title>
+    </head>
+    <body>
+    <script src="https://www.gstatic.com/firebasejs/7.14.5/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.14.5/firebase-messaging.js"></script>
+    <script>
+        function toClipboard(text) {
+            const tmp = document.createElement('textarea');
+            tmp.hidden = true;
+            tmp.value = text;
+            window.document.body.appendChild(tmp);
+            tmp.select();
+            window.document.execCommand("copy");
+            alert("Copied the text: " + text);
+            window.document.body.removeChild(tmp);
+        }
+    </script>
+    <button onclick="enableNotifications()">Получать уведомления</button>
+    <div id="pushTokenLayer" hidden>
+        Firebase token <code id="pushTokenValue" style="cursor:pointer" onclick="toClipboard(this.innerText)"></code><br/>
+    </div>
+    <script>
+        async function enableNotifications() {
+            // Insert your firebase project config here
+            const firebaseConfig = {};
+
+            const app = firebase.initializeApp(firebaseConfig);
+            const messaging = app.messaging();
+
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                console.log("user denied notifications")
+            }
+
+            const token = await messaging.getToken();
+
+            window.document.getElementById("pushTokenLayer").removeAttribute("hidden");
+
+            const pushTokenValue = window.document.getElementById("pushTokenValue");
+            pushTokenValue.innerText = token
+        }
+    </script>
+    </body>
+</html>

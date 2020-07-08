@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Тестовый пример приема пушей</title>
+    </head>
+    <body>
+    <script src="https://www.gstatic.com/firebasejs/7.14.5/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.14.5/firebase-messaging.js"></script>
+    <script>
+        function toClipboard(text) {
+            const tmp = document.createElement('textarea');
+            tmp.hidden = true;
+            tmp.value = text;
+            window.document.body.appendChild(tmp);
+            tmp.select();
+            window.document.execCommand("copy");
+            alert("Copied the text: " + text);
+            window.document.body.removeChild(tmp);
+        }
+    </script>
+    <form onsubmit="enableNotifications(this); return false" action="#">
+        User ID <input type="number" name="userID" required/>
+        <input type="submit" value="Получать уведомления"/>
+    </form>
+    <div id="pushTokenLayer" hidden>
+        Firebase token <code id="pushTokenValue" style="cursor:pointer" onclick="toClipboard(this.innerText)"></code><br/>
+        <button onclick="logout()">Выйти</button>
+    </div>
+    <script>
+        // Insert your firebase project config here
+        const firebaseConfig = {};
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const messaging = app.messaging(); // this fails if browser not supported
+
+        async function getMe() {
+            const resp = await fetch(`${window.location.origin}/api/v1/users/me`, {
+                credentials: "include",
+            });
+
+            if (resp.status === 401) {
+                return null;
+            }
+            if (!resp.ok) {
+                throw `unexpected status code ${resp.status}`
+            }
+
+            return await resp.json();
+        }
+
+        async function sendToken(token) {
+            const me = await getMe();
+            if (me === null) {
+                console.error("unauthorized on send token");
+                return;
+            }
+
+            window.localStorage.getItem("push-token-user");
+
+            const resp = await fetch(`${window.location.origin}/api/v1/tokens`, {
+                method: "POST",
+                body: JSON.stringify({
+                    token: {token: token, platform: "web"}
+                }),
+                credentials: "include",
+            })
+            if (!resp.ok) {
+                console.error("send token failed");
+                return;
+            }
+
+            // put current user to local storage for comparison
+            window.localStorage.setItem("push-token-user", JSON.stringify(me));
+        }
+
+        getMe().
+            then(me => {
+                if (!me) {
+                    // if user not authorized we must invalidate firebase registration
+                    // to prevent receiving pushes for unauthorized user
+                    // this may happen i.e. if 'deleteToken' failed on logout
+                    console.log(`user unauthorized, invalidate fcm registration`);
+                    window.localStorage.removeItem("push-token-user");
+                    messaging.deleteToken();
+                    return null;
+                }
+
+                // if user authorized and it's not user that received push token earlier
+                // we also must invalidate token to prevent receiving pushes for wrong user
+                // this may happen if i.e. user not logged out explicitly
+                let pushTokenUser = window.localStorage.getItem("push-token-user");
+                if (pushTokenUser && JSON.parse(pushTokenUser).id !== me.id) {
+                    console.log("token for wrong user, invalidate fcm registration");
+                    window.localStorage.removeItem("push-token-user");
+                    messaging.deleteToken();
+                    pushTokenUser = null;
+                }
+
+                // if user authorized and permission granted but token wasn't send we should re-send it
+                if (!pushTokenUser && Notification.permission === "granted") {
+                    console.log("token not sent to server while notification permission granted");
+                    messaging.getToken().then(sendToken);
+                }
+            }).
+            catch(e => console.log("get me error", e))
+
+        // according to sources of firebase-js-sdk source code registration token refreshed once a week
+        messaging.onTokenRefresh(async () => {
+            const newToken = await messaging.getToken();
+            pushTokenValue.innerText = newToken;
+            console.log(`updated token to ${newToken}`)
+            await sendToken(newToken)
+        })
+
+        async function enableNotifications(form) {
+            const loginResponse = await fetch(`${window.location.origin}/api/v1/users/login`, {
+                method: "POST",
+                body: JSON.stringify({
+                    id: Number(form.elements.userID.value),
+                })
+            })
+            if (!loginResponse.ok) {
+                alert("login failed");
+                return;
+            }
+
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                console.log("user denied notifications")
+                return;
+            }
+
+            const token = await messaging.getToken();
+
+            window.document.getElementById("pushTokenLayer").removeAttribute("hidden");
+
+            const pushTokenValue = window.document.getElementById("pushTokenValue");
+            pushTokenValue.innerText = token
+
+            await sendToken(token)
+        }
+
+        async function logout() {
+            const messaging = firebase.messaging();
+            await messaging.deleteToken();
+            console.log(`deleted token from firebase`)
+            window.document.getElementById("pushTokenLayer").setAttribute("hidden", "");
+            await fetch(`${window.location.origin}/api/v1/users/logout`, {
+                method: "POST",
+                credentials: "include",
+            })
+        }
+    </script>
+    </body>
+</html>
