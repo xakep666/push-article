@@ -8,7 +8,7 @@ import (
 
 	"push_article/pkg/token"
 
-	"firebase.google.com/go/messaging"
+	"firebase.google.com/go/v4/messaging"
 	"github.com/go-chi/chi"
 )
 

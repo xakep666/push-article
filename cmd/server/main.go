@@ -13,7 +13,7 @@ import (
 	"push_article/internal/routes"
 	"push_article/pkg/token"
 
-	firebase "firebase.google.com/go"
+	firebase "firebase.google.com/go/v4"
 	"github.com/go-chi/chi"
 	"google.golang.org/api/option"
 )
@@ -22,8 +22,8 @@ var _, filePath, _, _ = runtime.Caller(0)
 var projectRoot, _ = filepath.Abs(path.Join(filepath.Dir(filePath), "..", ".."))
 
 var (
-	firebaseServiceAccountFlag = flag.String("firebase-service-account", "Path to file with firebase client config", "")
-	listenAddrFlag             = flag.String("listen-addr", "HTTP server listen address", ":0")
+	firebaseServiceAccountFlag = flag.String("firebase-service-account", "", "Path to file with firebase client config")
+	listenAddrFlag             = flag.String("listen-addr", "", "HTTP server listen address")
 )
 
 func main() {
