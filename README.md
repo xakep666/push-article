@@ -22,9 +22,9 @@ Token invalidation occurs in following cases:
 # How to run
 
 ## Preparation
-1. Install [https://golang.org/dl/](go).
+1. Install [go](https://golang.org/dl/).
 
-1. Create a project in [https://console.firebase.google.com](Firebase console).
+1. Create a project in [Firebase console](https://console.firebase.google.com).
 
 1. In project console you have to register web application to receive client credentials snippet and service account credentials file.
 This snippet should be inserted into `user_example.html` and `simple_example.html` (`firebaseConfig` variable).
